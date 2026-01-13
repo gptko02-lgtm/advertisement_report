@@ -16,7 +16,12 @@ export async function generateWeeklyExcelReport(
     prevWeekRange: string,  // "12.29~01.02"
     prevWeekData?: WeeklySummary  // 지지난주 데이터 (선택적)
 ): Promise<void> {
-    const workbook = new ExcelJS.Workbook();
+    // ExcelJS를 안전하게 접근 (Next.js 빌드 호환성)
+    const ExcelJSWorkbook = (ExcelJS as any).default?.Workbook || ExcelJS.Workbook;
+    if (!ExcelJSWorkbook) {
+        throw new Error('ExcelJS Workbook을 로드할 수 없습니다. ExcelJS 라이브러리를 확인해주세요.');
+    }
+    const workbook = new ExcelJSWorkbook();
     const sheet = workbook.addWorksheet('주간 광고 운영');
 
     let currentRow = 1;
@@ -249,17 +254,29 @@ function styleDataRow(row: ExcelJS.Row) {
 /**
  * Excel 파일 다운로드
  */
-function downloadExcelFile(buffer: ArrayBuffer, filename: string) {
-    const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
+function downloadExcelFile(buffer: any, filename: string) {
+    try {
+        // Buffer를 Uint8Array로 변환하여 Blob으로 생성
+        const uint8Array = new Uint8Array(buffer);
+        const blob = new Blob([uint8Array], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
 
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+        // Blob URL 생성 및 다운로드
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+
+        // 링크를 DOM에 추가하고 클릭
+        document.body.appendChild(link);
+        link.click();
+
+        // 정리
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Excel download failed:', error);
+        throw new Error('파일 다운로드에 실패했습니다.');
+    }
 }

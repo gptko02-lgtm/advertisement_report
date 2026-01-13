@@ -81,6 +81,7 @@ export default function WeeklyReportPage() {
 
             setIsLoading(false);
         } catch (err) {
+            console.error('Excel generation error:', err);
             setError(err instanceof Error ? err.message : '데이터 처리 중 오류가 발생했습니다.');
             setIsLoading(false);
         }
