@@ -15,7 +15,9 @@ export async function generateExcelReport(
     platforms: PlatformComparison[],
     insights: Insight[]
 ): Promise<void> {
-    const workbook = new ExcelJS.Workbook();
+    // ExcelJS를 안전하게 접근 (Next.js 빌드 호환성)
+    const ExcelJSWorkbook = ((ExcelJS as any).default || ExcelJS).Workbook || ExcelJS.Workbook;
+    const workbook = new ExcelJSWorkbook();
 
     // 단일 통합 시트 생성
     await createUnifiedSheet(workbook, rawData, metrics, keywords, platforms, insights);
@@ -459,17 +461,24 @@ function styleDataRow(row: ExcelJS.Row) {
 /**
  * Excel 파일 다운로드
  */
-function downloadExcelFile(buffer: ArrayBuffer, filename: string) {
-    const blob = new Blob([buffer], {
+function downloadExcelFile(buffer: any, filename: string) {
+    // Buffer를 Uint8Array로 변환하여 Blob으로 생성
+    const uint8Array = new Uint8Array(buffer);
+    const blob = new Blob([uint8Array], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
 
+    // Blob URL 생성 및 다운로드
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
+
+    // 링크를 DOM에 추가하고 클릭
     document.body.appendChild(link);
     link.click();
+
+    // 정리
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
 }
