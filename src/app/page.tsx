@@ -56,10 +56,17 @@ export default function Home() {
       {/* Header */}
       <header className="bg-[var(--color-bg-card)] border-b border-[var(--color-border)] shadow-sm">
         <div className="container py-6">
-          <h1 className="gradient-text">🎯 광고 성과 분석 리포트 생성기</h1>
-          <p className="text-[var(--color-text-secondary)] mt-2">
-            광고 데이터를 붙여넣으면 자동으로 분석하고 인사이트가 포함된 엑셀 리포트를 생성합니다
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="gradient-text">🎯 광고 성과 분석 리포트 생성기</h1>
+              <p className="text-[var(--color-text-secondary)] mt-2">
+                광고 데이터를 붙여넣으면 자동으로 분석하고 인사이트가 포함된 엑셀 리포트를 생성합니다
+              </p>
+            </div>
+            <a href="/weekly" className="btn btn-outline">
+              주간 리포트 →
+            </a>
+          </div>
         </div>
       </header>
 
