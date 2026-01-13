@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { parseNaverWeeklyData, parseGoogleWeeklyData, calculateWeekRange, calculatePreviousWeekRange, AdditionalMetrics } from '@/utils/weeklyDataParser';
-import { generateWeeklySummary } from '@/utils/weeklyAnalyticsEngine';
+import { generateWeeklySummary, WeeklySummary } from '@/utils/weeklyAnalyticsEngine';
 import { generateWeeklyExcelReport } from '@/utils/weeklyExcelExporter';
 
 export default function WeeklyReportPage() {
@@ -12,8 +12,40 @@ export default function WeeklyReportPage() {
     const [gaConversions, setGaConversions] = useState('');
     const [realInquiries, setRealInquiries] = useState('');
     const [perfmaxBudget, setPerfmaxBudget] = useState('');
+
+    // 지지난주 데이터 (탭으로 구분된 한 줄)
+    const [prevWeekRawData, setPrevWeekRawData] = useState('');
+
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    /**
+     * 지지난주 데이터 파싱
+     * 형식: 12.29~12.31\t50,068\t205\t991\t203,070\t-\t3\t67,690\t38,731
+     */
+    const parsePrevWeekData = (rawData: string): WeeklySummary | undefined => {
+        if (!rawData || !rawData.trim()) return undefined;
+
+        const parts = rawData.split('\t').map(p => p.trim());
+        if (parts.length < 9) return undefined;
+
+        const parseNum = (val: string) => {
+            if (val === '-' || val === '') return 0;
+            return parseInt(val.replace(/,/g, '')) || 0;
+        };
+
+        return {
+            매체: '전체',
+            노출수: parseNum(parts[1]),
+            클릭수: parseNum(parts[2]),
+            CPC: parseNum(parts[3]),
+            광고비: parseNum(parts[4]),
+            GA전환수: parseNum(parts[5]),
+            실문의건수: parseNum(parts[6]),
+            CPA: parseNum(parts[7]),
+            퍼맥스광고비: parseNum(parts[8]),
+        };
+    };
 
     const handleGenerate = async () => {
         setIsLoading(true);
@@ -41,8 +73,11 @@ export default function WeeklyReportPage() {
             const lastWeekRange = `${lastWeek.start}~${lastWeek.end}`;
             const prevWeekRange = `${prevWeek.start}~${prevWeek.end}`;
 
-            // 5. 엑셀 생성
-            await generateWeeklyExcelReport(summary, lastWeekRange, prevWeekRange);
+            // 5. 지지난주 데이터 파싱
+            const prevWeekData = parsePrevWeekData(prevWeekRawData);
+
+            // 6. 엑셀 생성
+            await generateWeeklyExcelReport(summary, lastWeekRange, prevWeekRange, prevWeekData);
 
             setIsLoading(false);
         } catch (err) {
@@ -109,9 +144,9 @@ MO_TOP 10_지피티	TOP10_MO	AI활용교육	2026-01-05	KRW	10000	24	1	979	979
                         />
                     </div>
 
-                    {/* 추가 지표 입력 */}
+                    {/* 지난주 추가 지표 입력 */}
                     <div className="card fade-in">
-                        <h2 className="gradient-text mb-4">📝 [3] 추가 지표 입력</h2>
+                        <h2 className="gradient-text mb-4">📝 [3] 지난주 추가 지표 입력</h2>
                         <p className="text-sm text-[var(--color-text-secondary)] mb-4">
                             아래 항목들을 수기로 입력해주세요 (GA 데이터 및 퍼맥스 광고비)
                         </p>
@@ -156,6 +191,25 @@ MO_TOP 10_지피티	TOP10_MO	AI활용교육	2026-01-05	KRW	10000	24	1	979	979
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    {/* 지지난주 데이터 입력 (선택) */}
+                    <div className="card fade-in">
+                        <h2 className="gradient-text mb-4">📊 [4] 지지난주 데이터 입력 (선택)</h2>
+                        <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+                            엑셀에서 복사한 지지난주 데이터 행을 붙여넣으세요 (날짜포함, 탭으로 구분)
+                        </p>
+                        <input
+                            type="text"
+                            value={prevWeekRawData}
+                            onChange={(e) => setPrevWeekRawData(e.target.value)}
+                            placeholder="예: 12.29~12.31		50,068	205	991	203,070	-	3	67,690	38,731"
+                            className="input font-mono text-sm"
+                            disabled={isLoading}
+                        />
+                        <p className="text-xs text-[var(--color-text-secondary)] mt-2">
+                            💡 형식: 날짜	노출수	클릭수	CPC	광고비	GA전환수	실문의건수	CPA	퍼맥스광고비
+                        </p>
                     </div>
 
                     {/* Error Message */}

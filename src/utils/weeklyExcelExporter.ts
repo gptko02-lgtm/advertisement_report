@@ -13,7 +13,8 @@ export async function generateWeeklyExcelReport(
         구글: WeeklySummary;
     },
     lastWeekRange: string,  // "01.05~01.09"
-    prevWeekRange: string   // "12.29~01.02"
+    prevWeekRange: string,  // "12.29~01.02"
+    prevWeekData?: WeeklySummary  // 지지난주 데이터 (선택적)
 ): Promise<void> {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('주간 광고 운영');
@@ -77,19 +78,19 @@ export async function generateWeeklyExcelReport(
     // ============================================
     // 1. 전체 섹션
     // ============================================
-    currentRow = addWeeklySection(sheet, currentRow, '1. 전체', summary.전체, lastWeekRange, prevWeekRange, true);
+    currentRow = addWeeklySection(sheet, currentRow, '1. 전체', summary.전체, lastWeekRange, prevWeekRange, prevWeekData, true);
     currentRow++; // 빈 줄
 
     // ============================================
     // 2. 네이버 섹션
     // ============================================
-    currentRow = addWeeklySection(sheet, currentRow, '2. 네이버', summary.네이버, lastWeekRange, prevWeekRange, false);
+    currentRow = addWeeklySection(sheet, currentRow, '2. 네이버', summary.네이버, lastWeekRange, prevWeekRange, undefined, false);
     currentRow++; // 빈 줄
 
     // ============================================
     // 3. 구글 섹션
     // ============================================
-    currentRow = addWeeklySection(sheet, currentRow, '3. 구글', summary.구글, lastWeekRange, prevWeekRange, false);
+    currentRow = addWeeklySection(sheet, currentRow, '3. 구글', summary.구글, lastWeekRange, prevWeekRange, undefined, false);
 
     // 열 너비 설정
     sheet.getColumn(1).width = 15;  // 주
@@ -117,16 +118,16 @@ function addWeeklySection(
     data: WeeklySummary,
     lastWeekRange: string,
     prevWeekRange: string,
+    prevWeekData: WeeklySummary | undefined,
     showAllColumns: boolean
 ): number {
     let currentRow = startRow;
 
-    // 섹션 제목
+    // 섹션 제목 (배경색 없음, 검정 글씨)
     sheet.mergeCells(`A${currentRow}:I${currentRow}`);
     const sectionTitle = sheet.getCell(`A${currentRow}`);
     sectionTitle.value = title;
-    sectionTitle.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-    sectionTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A8A' } };
+    sectionTitle.font = { bold: true, size: 11, color: { argb: 'FF000000' } };  // 검정 글씨
     sectionTitle.alignment = { horizontal: 'left', vertical: 'middle' };
     sheet.getRow(currentRow).height = 20;
     currentRow++;
@@ -150,7 +151,41 @@ function addWeeklySection(
     });
     currentRow++;
 
-    // 지난주 데이터 행
+    // 지지난주 데이터 행 (먼저 표시)
+    const prevWeekValues = [
+        prevWeekRange,
+        prevWeekData ? prevWeekData.노출수 : '',
+        prevWeekData ? prevWeekData.클릭수 : '',
+        prevWeekData ? prevWeekData.CPC : '',
+        prevWeekData ? prevWeekData.광고비 : '',
+        prevWeekData && showAllColumns ? prevWeekData.GA전환수 : '',
+        prevWeekData && showAllColumns ? prevWeekData.실문의건수 : '',
+        prevWeekData && showAllColumns ? prevWeekData.CPA : '',
+    ];
+
+    if (showAllColumns) {
+        prevWeekValues.push(prevWeekData ? prevWeekData.퍼맥스광고비 : '');
+    }
+
+    const prevWeekRow = sheet.addRow(prevWeekValues);
+    styleDataRow(prevWeekRow);
+
+    // 지지난주 데이터가 있으면 숫자 포맷 적용
+    if (prevWeekData) {
+        prevWeekRow.getCell(2).numFmt = '#,##0';  // 노출
+        prevWeekRow.getCell(3).numFmt = '#,##0';  // 클릭
+        prevWeekRow.getCell(4).numFmt = '#,##0';  // CPC
+        prevWeekRow.getCell(5).numFmt = '#,##0';  // 광고비
+        if (showAllColumns) {
+            prevWeekRow.getCell(6).numFmt = '#,##0';  // GA전환수
+            prevWeekRow.getCell(7).numFmt = '#,##0';  // 실문의건수
+            prevWeekRow.getCell(8).numFmt = '#,##0';  // CPA
+            prevWeekRow.getCell(9).numFmt = '#,##0';  // 퍼맥스광고비
+        }
+    }
+    currentRow++;
+
+    // 지난주 데이터 행 (두 번째로 표시)
     const lastWeekValues = [
         lastWeekRange,
         data.노출수,
@@ -180,16 +215,6 @@ function addWeeklySection(
         lastWeekRow.getCell(8).numFmt = '#,##0';  // CPA
         lastWeekRow.getCell(9).numFmt = '#,##0';  // 퍼맥스광고비
     }
-    currentRow++;
-
-    // 지지난주 데이터 행 (날짜만, 나머지 공백)
-    const prevWeekValues = [prevWeekRange, '', '', '', '', '', '', ''];
-    if (showAllColumns) {
-        prevWeekValues.push('');
-    }
-
-    const prevWeekRow = sheet.addRow(prevWeekValues);
-    styleDataRow(prevWeekRow);
     currentRow++;
 
     // 전주 비교 행 (공백)
